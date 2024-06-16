@@ -117,7 +117,7 @@ exports.getValidaRegistro = async (req, res) => {
       } catch (regError) {
         console.error("Error al registrar usuario:", regError.message);
         const errorResponse = ResponseVO.error("ERR002", regError.message);
-        return res.status(500).json(errorResponse);
+        return res.status(200).json(errorResponse);
       }
     } else {
       // Si no se encontraron registros, retornar un mensaje indicando que el cliente no está registrado
