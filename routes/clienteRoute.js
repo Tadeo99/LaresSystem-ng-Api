@@ -17,4 +17,5 @@ router.get('/contract', generalController.getObtenerContrato);
 router.get('/nextLetter', generalController.getObtenerProximaLetra);
 router.get('/lastPayment', generalController.getObtenerUltimosPagos);
 router.get('/recordPayment', generalController.getObtenerHistorial);
+router.get('/numberOperations', generalController.getObtenerNumOperaciones);
 module.exports = router;

@@ -411,3 +411,31 @@ WHERE
       return res.json(newUserResponse);
     });
   };
+
+
+exports.getObtenerNumOperaciones = async (req, res) => {
+  const numero_contrato = req.query.numero_contrato;
+  const nombre_pago = req.query.nombre_pago;
+  const query = `
+    select  ROW_NUMBER() OVER () AS nro,numero_operacion  from lares.depositos where 1=1 
+    and numero_contrato = $1 and nombre_pago = $2 ;
+    `;
+  // Realizar la consulta a la base de datos
+  client.query(
+    query,
+    [numero_contrato,nombre_pago],
+    async (error, resultado) => {
+      if (error) {
+        console.error(error.message);
+        const errorResponse = ResponseVO.error(
+          "ERR001",
+          "Error al obtener los numeros de operaciones"
+        );
+        return res.status(200).json(errorResponse);
+      }
+      const newUserResponse = ResponseVO.success(resultado.rows, null, null);
+      res.set("Content-Type", "application/json; charset=utf-8");
+      return res.json(newUserResponse);
+    }
+  );
+};
