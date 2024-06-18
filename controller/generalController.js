@@ -339,7 +339,8 @@ pg.fecha_pago,
 pg.documento_cliente,
 pg.numero_contrato,
 pg.monto_programado,
-pg.estado
+pg.estado,
+replace(pg.moneda_venta, 'PEN','SOLES') moneda
 FROM
     lares.pagos pg
     LEFT JOIN (
