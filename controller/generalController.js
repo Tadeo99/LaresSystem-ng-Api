@@ -146,7 +146,8 @@ function cleanString(str) {
 	   when trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))) between 0 and 999 then LPAD( trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))), 3 , '0') 
 	 Else '' end as numero_couta,
     pg.saldo,
-    pg.fecha_vcto
+    pg.fecha_vcto,
+    replace(pg.moneda_venta, 'PEN','SOLES') moneda
 FROM
     lares.pagos pg
     left join
@@ -240,7 +241,8 @@ select distinct
 	   when trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))) between 0 and 999 then LPAD( trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))), 3 , '0') 
 	 Else '' end as numero_couta,
     pg.monto_pagado,
-    pg.fecha_vcto
+    pg.fecha_vcto,
+    replace(pg.moneda_venta, 'PEN','SOLES') moneda
 FROM
     lares.pagos pg
     left join
