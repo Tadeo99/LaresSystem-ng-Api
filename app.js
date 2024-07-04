@@ -18,19 +18,3 @@ app.use((req, res, next) => {
 app.listen(6500, () => {
     console.log('Servidor activo');
 });
-
-// Consulta para Buscar clientes/usuarios
-// app.get('/clientes/busqueda/:id', (req, res) => {
-//     const userId = req.params.id;
-//     const query = `SELECT * FROM lares.pagos WHERE numero_contrato = '${userId}'`;
-//     console.log(query);
-
-//     client.query(query, (error, resultado) => {
-//         if (error) {
-//           res.status(500).json({ error: 'Error al buscar el usuario.' });
-//           return;
-//         }
-
-//         res.json(resultado);
-//     });
-// });

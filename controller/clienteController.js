@@ -335,10 +335,10 @@ exports.login = async (req, res) => {
   const { tipoDocumento, numeroDocumento, password } = req.body;
   console.log(tipoDocumento);
   try {
-    const user = await loginUsuario(tipoDocumento, numeroDocumento, password);
+    const { user, token } = await loginUsuario(tipoDocumento, numeroDocumento, password);
     user.password = null;
     user.cliente = cleanString(user.cliente);
-    const successResponse = ResponseVO.success(user, "Inicio de sesión exitoso", user.mensaje);
+    const successResponse = ResponseVO.successLogin(user, "Inicio de sesión exitoso", user.mensaje,token);
     return res.json(successResponse);
   } catch (error) {
     console.error("Error al iniciar sesión:", error.message);

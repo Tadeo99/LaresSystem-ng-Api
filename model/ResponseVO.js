@@ -10,6 +10,16 @@ class ResponseVO {
         this.pagination = null;
     }
 
+    static successLogin(listaResultado, objetoResultado, pagination,accessToken) {
+        const response = new ResponseVO();
+        response.listaResultado = listaResultado;
+        response.objetoResultado = objetoResultado;
+        response.contador = listaResultado ? listaResultado.length : 0;
+        response.pagination = pagination;
+        response.accessToken  = accessToken;
+        return response;
+    }
+
     static success(listaResultado, objetoResultado, pagination) {
         const response = new ResponseVO();
         response.listaResultado = listaResultado;
