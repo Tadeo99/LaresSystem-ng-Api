@@ -11,8 +11,9 @@ router.get('/userValidation', authMiddleware,clienteController.getUserValidation
 router.post('/login', clienteController.login);
 router.post('/signup', authMiddleware,clienteController.signUp);
 router.put('/changePassword', authMiddleware,clienteController.changePassword);
+//MYSQL
 router.get('/current-time-mysql', clienteController.getCurrentTimeMySQL);
-
+router.get('/proyect/url', clienteController.getObtenerProyectoUrl);
 //general
 router.get('/contract', authMiddleware,generalController.getObtenerContrato);
 router.get('/status', authMiddleware,generalController.getObtenerEstado);

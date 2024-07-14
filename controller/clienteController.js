@@ -143,6 +143,24 @@ exports.getCurrentTimeMySQL = async (req, res) => {
   }
 };
 
+exports.getObtenerProyectoUrl = async (req, res) => {
+  const codigo = req.query.codigo;
+  console.log("Código recibido:", codigo);
+  try {
+    let query = "SELECT * FROM proyectos WHERE codigo = '" + codigo + "'";
+    const [results] = await mysqlSequelize.query(query);
+    const successResponse = ResponseVO.success(results, null, null);
+    res.json(successResponse);
+  } catch (error) {
+    console.error("Error en la consulta:", error);
+    const errorResponse = ResponseVO.error(
+      "ERR004",
+      "Error retrieving data from MySQL"
+    );
+    res.status(500).json(errorResponse);
+  }
+};
+
 // Obetener lista de clientes
 exports.getClientes = (req, res) => {
   const query = `

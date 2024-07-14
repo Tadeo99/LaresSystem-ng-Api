@@ -23,13 +23,15 @@ SELECT
     telefono,
     celulares,
     codigo_unidad,
-    id_unidad
+    id_unidad,
+    codigo_proyecto
 FROM (
     SELECT 
         pg.numero_contrato,
         pg.documento_cliente,
         cli.tipo_documento,
         pg.nombre_proyecto,
+        pg.codigo_proyecto,
         pg.nombre,
         u.id as id_unidad,
         UPPER(pg.nombres_cliente) || ' ' || UPPER(pg.Apellidos_Cliente) AS Cliente,
@@ -120,6 +122,7 @@ WHERE row_num = 1;
         celulares: cleanString(row.celulares),
         codigo_unidad: row.codigo_unidad,
         id_unidad: row.id_unidad,
+        codigo_proyecto:row.codigo_proyecto
       };
     });
     const newUserResponse = ResponseVO.success(cleanedRows, null, null);
