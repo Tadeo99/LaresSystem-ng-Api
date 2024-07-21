@@ -3,7 +3,8 @@ const router = express.Router();
 const clienteController = require('../controller/clienteController');
 const generalController = require('../controller/generalController');
 const authMiddleware = require('../transversal/authMiddleware');
-
+const generalJDBC = require('../controller/GenericJDBC');
+router.get('/lote/url',authMiddleware,generalJDBC.getObtenerProyectoUrl);
 router.get('/validaRegistro',clienteController.getValidaRegistro);
 router.get('/clientes', authMiddleware,clienteController.getClientes);
 router.get('/clientesPagos', authMiddleware,clienteController.getClientesPagos);
@@ -14,6 +15,7 @@ router.put('/changePassword', authMiddleware,clienteController.changePassword);
 //MYSQL
 router.get('/current-time-mysql', clienteController.getCurrentTimeMySQL);
 router.get('/proyect/url', clienteController.getObtenerProyectoUrl);
+router.get('/payment/url', clienteController.getObtenerPagosUrl);
 //general
 router.get('/contract', authMiddleware,generalController.getObtenerContrato);
 router.get('/status', authMiddleware,generalController.getObtenerEstado);
