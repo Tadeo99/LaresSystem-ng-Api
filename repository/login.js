@@ -34,7 +34,7 @@ async function loginUsuario(tipo_documento, documento_cliente, password) {
     const token = jwt.sign(
       { userId: user.id, documento_cliente: user.documento_cliente },
       SECRET_KEY,
-      { expiresIn: "5m" } // Tiempo de expiración del token
+      { expiresIn: "15m" } // Tiempo de expiración del token
     );
     return { user, token };
   } catch (error) {
