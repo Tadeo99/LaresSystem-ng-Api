@@ -165,7 +165,7 @@ exports.getObtenerPagosUrl = async (req, res) => {
   const codigo = req.query.codigo;
   console.log("Código recibido:", codigo);
   try {
-    let query = "SELECT * FROM PAGOS WHERE codigo = '" + codigo + "'";
+    let query = "SELECT * FROM pagos WHERE codigo = '" + codigo + "'";
     const [results] = await mysqlSequelize.query(query);
     const successResponse = ResponseVO.success(results, results, null);
     res.json(successResponse);
