@@ -6,7 +6,8 @@ const registroUsuario = require("../repository/registroUsuario.js");
 const loginUsuario = require("../repository/login.js");
 const changePasswordUser = require("../repository/cambiarContraseña.js");
 const validarUsuario = require("../repository/validarUsuario.js");
-
+const axios = require('axios');
+require('dotenv').config();
 exports.getObtenerContrato = async (req, res) => {
   const documentoCliente = req.query.numeroDocumento;
   const tipoDoc = req.query.tipoDocumento;
@@ -543,28 +544,86 @@ WHERE
   );
 };
 
+// Función principal para obtener números de operación y agregarlos con los comprobantes
 exports.getObtenerNumOperaciones = async (req, res) => {
   const numero_contrato = req.query.numero_contrato;
   const nombre_pago = req.query.nombre_pago;
+
   const query = `
-    select  ROW_NUMBER() OVER () AS nro,numero_operacion  from lares.depositos where 1=1 
-    and numero_contrato = $1 and nombre_pago = $2 ;
-    `;
-  // Realizar la consulta a la base de datos
-  client.query(
-    query,
-    [numero_contrato, nombre_pago],
-    async (error, resultado) => {
-      if (error) {
-        const errorResponse = ResponseVO.error(
-          "ERR001",
-          "Error al obtener los numeros de operaciones"
-        );
-        return res.status(200).json(errorResponse);
+    select ROW_NUMBER() OVER () AS nro, numero_operacion
+    from lares.depositos
+    where 1=1 and numero_contrato = $1 and nombre_pago = $2;
+  `;
+
+  try {
+    const resultado = await client.query(query, [numero_contrato, nombre_pago]);
+    const operaciones = resultado.rows;
+
+    // Obtener comprobantes para cada número de operación
+    const operacionesConComprobantes = await Promise.all(operaciones.map(async (operacion) => {
+      console.log(operacion.numero_operacion);
+      const comprobantes = await obtenerComprobantes(operacion.numero_operacion);
+      if (comprobantes && Array.isArray(comprobantes)) {
+        if (comprobantes.length === 0) {
+          return [{
+            ...operacion,
+            nro: 1, // O cualquier valor por defecto que desees
+            tipoComprobante: "-",
+            url: null
+          }];
+        }
       }
-      const newUserResponse = ResponseVO.success(resultado.rows, null, null);
-      res.set("Content-Type", "application/json; charset=utf-8");
-      return res.json(newUserResponse);
-    }
-  );
+      // Agregar datos correlativos a los comprobantes
+      const comprobantesConDatos = comprobantes.map((comprobante, index) => ({
+        nro: index + 1, // Número correlativo
+        numero_operacion: operacion.numero_operacion,
+        tipoComprobante: comprobante.desc_tdv,
+        url: comprobante.pdf_link_fe
+      }));
+
+      return comprobantesConDatos.map(comprobante => ({
+        ...operacion,
+        ...comprobante
+      }));
+    }));
+
+    // Consolidar todos los resultados en una sola lista
+    const listaUnificada = operacionesConComprobantes.flat();
+
+    // Crear una respuesta de éxito con los datos combinados
+    const successResponse = ResponseVO.success(listaUnificada, null, null);
+    res.set("Content-Type", "application/json; charset=utf-8");
+    res.json(successResponse);
+  } catch (error) {
+    console.error("Error executing query:", error);
+    const errorResponse = ResponseVO.error(
+      "ERR001",
+      "Error al obtener los números de operaciones"
+    );
+    res.status(500).json(errorResponse);
+  }
 };
+
+// Función para obtener los comprobantes asociados a un número de operación
+async function obtenerComprobantes(numeroOperacion) {
+  const url = 'https://apirestlares.digitechso.com/v1/awpp/portalpropietario/representacionimpresacomprobante';
+  const params = {
+    ListNumOp: [
+      {
+        num_operacion: numeroOperacion
+      }
+    ]
+  };
+
+  try {
+    const response = await axios.post(url, params, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data.Body.jsonRI || []; // Retornar la lista de comprobantes
+  } catch (error) {
+    console.error("Error fetching data from API:", error);
+    return []; // En caso de error, retornar una lista vacía
+  }
+}
