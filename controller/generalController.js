@@ -563,16 +563,6 @@ exports.getObtenerNumOperaciones = async (req, res) => {
     const operacionesConComprobantes = await Promise.all(operaciones.map(async (operacion) => {
       console.log(operacion.numero_operacion);
       const comprobantes = await obtenerComprobantes(operacion.numero_operacion);
-      if (comprobantes && Array.isArray(comprobantes)) {
-        if (comprobantes.length === 0) {
-          return [{
-            ...operacion,
-            nro: 1, // O cualquier valor por defecto que desees
-            tipoComprobante: "-",
-            url: null
-          }];
-        }
-      }
       // Agregar datos correlativos a los comprobantes
       const comprobantesConDatos = comprobantes.map((comprobante, index) => ({
         nro: index + 1, // Número correlativo
