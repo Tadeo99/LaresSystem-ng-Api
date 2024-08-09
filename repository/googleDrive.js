@@ -1,9 +1,6 @@
 const { google } = require('googleapis');
 const axios = require('axios');
 require('dotenv').config();
-// Carga las credenciales desde el archivo JSON
-const credentials = require('../credencialesGoogle.json');
-
 // Configura los parámetros de autenticación
 const client = new google.auth.JWT(
   process.env.GOOGLE_CLIENT_ID,
