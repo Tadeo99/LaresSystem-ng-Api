@@ -4,6 +4,10 @@ const clienteController = require('../controller/clienteController');
 const generalController = require('../controller/generalController');
 const authMiddleware = require('../transversal/authMiddleware');
 const generalJDBC = require('../controller/GenericJDBC');
+const googleDrive = require('../controller/googleController');
+//contrato
+router.get('/contrat/url',authMiddleware,googleDrive.getObtenerContratos);
+
 router.get('/lote/url',authMiddleware,generalJDBC.getObtenerProyectoUrl);
 router.get('/validaRegistro',clienteController.getValidaRegistro);
 router.get('/clientes', authMiddleware,clienteController.getClientes);
