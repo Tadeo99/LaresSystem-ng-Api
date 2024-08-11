@@ -454,10 +454,9 @@ exports.getObtenerHistorial = async (req, res) => {
   const numero_contrato = req.query.numero_contrato;
   const query = `
 SELECT distinct
-CASE 
-    WHEN codigo_proyecto = 'VE' THEN pg.etiqueta 
-        ELSE pg.nombre 
-    END AS nombre,
+pg.codigo_proyecto,
+pg.etiqueta,
+pg.nombre,
 pg.saldo,
 pg.interes_compensatorio,
 pg.mora,
