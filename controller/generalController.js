@@ -151,93 +151,54 @@ function cleanString(str) {
 exports.getObtenerEstado = async (req, res) => {
   const numero_contrato = req.query.numero_contrato;
   const query = `
-        SELECT
- numero_contrato,
- estado_letra
-FROM (
-    SELECT 
-        p.numero_contrato,
-        p.MontoCuotaInicial_Pagado,
-        p.estado_letra,
-        row_number() over(partition by p.numero_contrato order by Case When LOWER(estado_letra) ='resuelto' Then 1 When LOWER(estado_letra) ='pendiente' Then 2 Else 3 end) as id_orden_est
-    FROM (
-        SELECT 
-            pago.numero_contrato,
-            sumas.cuota_inicial + sumas.separacion+sumas.firma_contrato MontoCuotaInicial_Pagado,
-            Case When pago.tipo_cronograma in ('cronograma de pagos', 'cronograma de ahorros') and pago.estado != 'pagado' and proceso.estado_anulacion ='Anulacion' Then 'Resuelto' 
-    		When pago.tipo_cronograma ='cronograma de financiamiento' and pago.estado != 'pagado' and fn.tipo ='Resolución' Then 'Resuelto'
-    		Else pago.estado End as estado_letra
-        FROM lares.pagos pago
-        LEFT JOIN 
-    	lares.finanzas fn ON pago.numero_contrato = fn.numero_contrato and fn.tipo ='Resolución'
-        INNER JOIN (
-		    SELECT
-		    *
-		    , row_number() over(partition by numero_contrato order by Id_pri) as id_orden
-		    FROM
-		    (
-			SELECT
-	            process.nombre_proyecto,    
-				process.codigo_unidad,
-		        process.numero_contrato,
-		        process.nombre,
-		        split_part(process.codigo_unidad, '-',1) AS Proyecto,
-		        split_part(process.codigo_unidad, '-',2) AS Etapa,
-		        split_part(process.codigo_unidad, '-',3) AS Manzana,
-		        split_part(process.codigo_unidad, '-',4) AS Lote,
-		        process.nombre as estado_anulacion,
-		        Case When LOWER(nombre) ='anulacion' and LOWER(nombre_flujo) ='resolución por morosidad casas' Then 1
-				     When LOWER(nombre) ='venta' Then 2 Else 3 End as id_pri
-		    FROM 
-		        lares.procesos process
-		    ) T1 where id_pri in(1,2)
-		) AS proceso ON pago.numero_contrato = proceso.numero_contrato and proceso.id_orden =1
-        INNER JOIN lares.clientes cliente ON pago.documento_cliente = cliente.documento
-        INNER JOIN lares.unidades u on proceso.codigo_unidad = u.codigo
-        LEFT JOIN (
-            SELECT 
-                p.numero_contrato,
-                SUM(Case When LOWER(p.etiqueta) = 'cuota inicial' Then p.monto_pagado Else 0 End) AS cuota_inicial,
-                SUM(Case When LOWER(p.etiqueta) = 'separación' Then p.monto_pagado Else 0 End) AS separacion,
-                SUM(Case When LOWER(p.etiqueta) = 'firma de contrato' Then p.monto_pagado Else 0 End) AS firma_contrato
-            FROM lares.pagos p
-            WHERE p.monto_pagado <> 0
-            --AND p.fecha_contrato IS NOT NULL
-            AND p.numero_contrato IS NOT NULL
-            AND p.numero_contrato <> ''
-            GROUP BY p.numero_contrato
-        ) AS sumas ON pago.numero_contrato = sumas.numero_contrato
-		LEFT JOIN (
-            SELECT 
-                p.numero_contrato,
-				SUM(saldo) saldo_pendiente
-            FROM lares.pagos p
-            WHERE p.fecha_contrato IS NOT NULL
-            AND p.numero_contrato IS NOT NULL
-            AND p.numero_contrato <> ''
-            GROUP BY p.numero_contrato
-        ) AS sp ON pago.numero_contrato = sp.numero_contrato        
-        LEFT JOIN (
-            SELECT
-                p.numero_contrato,
-                SUM(Case When p.etiqueta = 'Bono Techo Propio' Then p.saldo Else 0 End) AS bono_techo_propio
-            FROM lares.pagos p
-            WHERE  p.etiqueta = 'Bono Techo Propio'
-            AND p.numero_contrato IS NOT NULL
-            AND p.numero_contrato <> ''
-            AND (p.tipo_cronograma= 'cronograma de pagos' or p.tipo_cronograma ='cronograma de financiamiento')
-            GROUP BY p.numero_contrato
-        ) AS bono ON pago.numero_contrato = bono.numero_contrato
-        WHERE pago.numero_contrato IS NOT NULL
-        AND pago.numero_contrato <> ''
-        ORDER BY pago.fecha_contrato DESC
-    ) AS p
-) AS subquery
-WHERE id_orden_est =1 and isnull(MontoCuotaInicial_Pagado,0) > 0
-and numero_contrato = $1
-GROUP BY
-    numero_contrato,
-   	estado_letra ;
+  with
+ pagos as
+ (
+ select distinct numero_contrato,etiqueta, estado from lares.pagos where tipo_cronograma <> 'cronograma de ahorros' and motivo_inactivo is null and numero_contrato is not null and numero_contrato <> ''
+ ),
+ procesos as 
+ (select distinct numero_contrato, tipo_cronograma from lares.procesos
+ ),
+ resultado1 as
+ (
+    select numero_contrato, 'firma contrato' AS estado, 1 as orden 
+    FROM(
+    SELECT
+        p.numero_contrato, pr.tipo_cronograma, count(1) as cant
+    FROM 
+        pagos p 
+    INNER JOIN 
+        procesos pr ON p.numero_contrato = pr.numero_contrato
+    WHERE 
+        (
+            (pr.tipo_cronograma = 'Hipotecario' AND (
+                (LOWER(p.etiqueta) in ('separación', 'cuota inicial', 'firma de contrato') AND p.estado = 'pagado')
+            )) 
+            OR 
+            (pr.tipo_cronograma = 'Financiamiento' AND (
+                (LOWER(p.etiqueta) in ('separación', 'firma de contrato') AND p.estado = 'pagado')
+            ))
+        )
+     group by p.numero_contrato, pr.tipo_cronograma
+     ) tf where ((tf.tipo_cronograma='Financiamiento' and tf.cant >=2) or (tf.tipo_cronograma='Hipotecario' and tf.cant >=3))
+     and numero_contrato=$1
+ ),
+ pagos2 as 
+ ( select distinct numero_contrato, estado from pagos
+ ),
+ pagos3 as
+ ( select numero_contrato, count(1) as cant from  pagos2
+  group by numero_contrato
+ ),
+ resultado2 as
+ (
+ select numero_contrato, 'pago completo' AS estado, 2 as orden from pagos3 where cant =1 and numero_contrato in (select numero_contrato from pagos2 where estado='pagado')
+	and numero_contrato=$1
+ )
+ select * from resultado1
+ union all
+ select * from resultado2  
+ order by numero_contrato, orden;
     `;
   client.query(query, [numero_contrato], async (error, resultado) => {
     if (error) {
@@ -247,7 +208,7 @@ GROUP BY
       );
       return res.status(200).json(errorResponse);
     }
-    const newUserResponse = ResponseVO.success(null, resultado.rows, null);
+    const newUserResponse = ResponseVO.success(resultado.rows, null, null);
     res.set("Content-Type", "application/json; charset=utf-8");
     return res.json(newUserResponse);
   });
