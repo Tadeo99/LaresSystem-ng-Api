@@ -2,10 +2,7 @@
 const { client, mysqlSequelize } = require("../src/database/connection.js");
 const bcrypt = require("bcryptjs");
 const ResponseVO = require("../model/ResponseVO.js");
-const registroUsuario = require("../repository/registroUsuario.js");
-const loginUsuario = require("../repository/login.js");
-const changePasswordUser = require("../repository/cambiarContraseña.js");
-const validarUsuario = require("../repository/validarUsuario.js");
+const makeApiRequest = require("../repository/googleDrive.js");
 const axios = require('axios');
 require('dotenv').config();
 exports.getObtenerContrato = async (req, res) => {
@@ -151,54 +148,76 @@ function cleanString(str) {
 exports.getObtenerEstado = async (req, res) => {
   const numero_contrato = req.query.numero_contrato;
   const query = `
-  with
- pagos as
- (
- select distinct numero_contrato,etiqueta, estado from lares.pagos where tipo_cronograma <> 'cronograma de ahorros' and motivo_inactivo is null and numero_contrato is not null and numero_contrato <> ''
- ),
- procesos as 
- (select distinct numero_contrato, tipo_cronograma from lares.procesos
- ),
- resultado1 as
- (
-    select numero_contrato, 'firma contrato' AS estado, 1 as orden 
-    FROM(
-    SELECT
-        p.numero_contrato, pr.tipo_cronograma, count(1) as cant
-    FROM 
-        pagos p 
-    INNER JOIN 
-        procesos pr ON p.numero_contrato = pr.numero_contrato
-    WHERE 
-        (
-            (pr.tipo_cronograma = 'Hipotecario' AND (
-                (LOWER(p.etiqueta) in ('separación', 'cuota inicial', 'firma de contrato') AND p.estado = 'pagado')
-            )) 
-            OR 
-            (pr.tipo_cronograma = 'Financiamiento' AND (
-                (LOWER(p.etiqueta) in ('separación', 'firma de contrato') AND p.estado = 'pagado')
-            ))
-        )
-     group by p.numero_contrato, pr.tipo_cronograma
-     ) tf where ((tf.tipo_cronograma='Financiamiento' and tf.cant >=2) or (tf.tipo_cronograma='Hipotecario' and tf.cant >=3))
-     and numero_contrato=$1
- ),
- pagos2 as 
- ( select distinct numero_contrato, estado from pagos
- ),
- pagos3 as
- ( select numero_contrato, count(1) as cant from  pagos2
-  group by numero_contrato
- ),
- resultado2 as
- (
- select numero_contrato, 'pago completo' AS estado, 2 as orden from pagos3 where cant =1 and numero_contrato in (select numero_contrato from pagos2 where estado='pagado')
-	and numero_contrato=$1
- )
- select * from resultado1
- union all
- select * from resultado2  
- order by numero_contrato, orden;
+with
+pagos as
+(
+select distinct numero_contrato, tipo_cronograma ,etiqueta, estado from lares.pagos 
+where tipo_cronograma <> 'cronograma de ahorros' and motivo_inactivo is null and numero_contrato is not null and numero_contrato <> ''
+),
+contratos as
+(
+select distinct numero_contrato, tipo_cronograma from pagos
+),
+estados as
+(
+   select distinct
+       p.numero_contrato
+       , p.estado
+       , LOWER(p.etiqueta) as etiqueta
+       , case when LOWER(p.etiqueta) ='separación' then 1
+       		when LOWER(p.etiqueta) ='cuota inicial' then 2
+       		when LOWER(p.etiqueta) ='firma de contrato' then 3 
+       	end as flag_orden
+   FROM 
+       pagos p
+   WHERE LOWER(p.etiqueta) in ('separación', 'cuota inicial', 'firma de contrato')
+),
+resultado1 as
+(
+select 
+*
+, case when flag_separacion ='pagado' and flag_cuotaincial ='pagado' and flag_firmacontrato ='pagado' then 1
+	when flag_separacion ='pagado' and flag_cuotaincial ='pagado' and flag_firmacontrato is null then 1
+	when flag_separacion ='pagado' and flag_cuotaincial is null and flag_firmacontrato is null then 1
+	when flag_separacion is null and flag_cuotaincial ='pagado' and flag_firmacontrato ='pagado' then 1
+	when flag_separacion is null and flag_cuotaincial ='pagado' and flag_firmacontrato is null then 1
+	when flag_separacion is null and flag_cuotaincial is null and flag_firmacontrato ='pagado' then 1
+	else 0
+  end as flag_ok
+from (
+	select 
+	c.numero_contrato
+	, c.tipo_cronograma
+	, e1.estado as flag_separacion
+	, e2.estado as flag_cuotaincial
+	, e3.estado as flag_firmacontrato
+	from 
+		contratos c
+		left join estados e1
+		on c.numero_contrato = e1.numero_contrato and e1.flag_orden = 1
+		left join estados e2
+		on c.numero_contrato = e2.numero_contrato and e2.flag_orden = 2
+		left join estados e3
+		on c.numero_contrato = e3.numero_contrato and e3.flag_orden = 3
+	) tf 
+	where numero_contrato=$1
+),
+pagos2 as 
+( select distinct numero_contrato, estado from pagos
+),
+pagos3 as
+( select numero_contrato, count(1) as cant from  pagos2
+ group by numero_contrato
+),
+resultado2 as
+(
+select numero_contrato, 'pago completo' AS estado, 2 as orden from pagos3 where cant =1 and numero_contrato in (select numero_contrato from pagos2 where estado='pagado')
+  and numero_contrato=$1
+)
+select numero_contrato, 'firma contrato' AS estado, 1 as orden  from resultado1 where flag_ok =1
+union all
+select * from resultado2
+order by numero_contrato, orden;
     `;
   client.query(query, [numero_contrato], async (error, resultado) => {
     if (error) {
@@ -522,7 +541,7 @@ exports.getObtenerNumOperaciones = async (req, res) => {
     // Obtener comprobantes para cada número de operación
     const operacionesConComprobantes = await Promise.all(operaciones.map(async (operacion) => {
       console.log(operacion.numero_operacion);
-      const comprobantes = await obtenerComprobantes(operacion.numero_operacion);
+      const comprobantes = await obtenerComprobantes(operacion.numero_operacion,nombre_pago);
       // Agregar datos correlativos a los comprobantes
       const comprobantesConDatos = comprobantes.map((comprobante, index) => ({
         nro: index + 1, // Número correlativo
@@ -555,8 +574,9 @@ exports.getObtenerNumOperaciones = async (req, res) => {
 };
 
 // Función para obtener los comprobantes asociados a un número de operación
-async function obtenerComprobantes(numeroOperacion) {
-  const url = 'https://apirestlares.digitechso.com/v1/awpp/portalpropietario/representacionimpresacomprobante';
+async function obtenerComprobantes(numeroOperacion,nombre_pago) {
+  const url =
+    "https://apirestlares.digitechso.com/v1/awpp/portalpropietario/representacionimpresacomprobante";
   const params = {
     ListNumOp: [
       {
@@ -568,10 +588,29 @@ async function obtenerComprobantes(numeroOperacion) {
   try {
     const response = await axios.post(url, params, {
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
-    return response.data.Body.jsonRI || []; // Retornar la lista de comprobantes
+    const comprobantes = response.data.Body.jsonRI || [];
+    if (comprobantes.length > 0) {
+      return comprobantes; // Si hay datos, retornar la lista de comprobantes
+    } else {
+      // Si no se encontraron datos, hacer la solicitud a la segunda API
+      console.error("numeroOperacion", numeroOperacion);
+      const idCarpeta = '1SYOcQIk3usM9WWgVNfzohVUJRx4AmmKA';
+      const nombreFile = numeroOperacion+'_'+nombre_pago+'.pdf';
+      const url = await makeApiRequest(nombreFile, idCarpeta);
+      if (url && !url.includes("Error")) {
+        //console.error("url add", url);
+        const comprobanteAdaptado = [{
+          desc_tdv: "Drive", // Asignar "drive" como tipo de documento
+          pdf_link_fe: url, // Usar el string como el link del PDF
+        }];
+        return comprobanteAdaptado;
+      } else {
+        return [];
+      }
+    }
   } catch (error) {
     console.error("Error fetching data from API:", error);
     return []; // En caso de error, retornar una lista vacía

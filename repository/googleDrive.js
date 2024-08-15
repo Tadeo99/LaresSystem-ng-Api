@@ -21,11 +21,11 @@ async function getAccessToken() {
 }
 
 // Función para hacer la solicitud a la API de Google Drive
-async function makeApiRequest(fileName) {
+async function makeApiRequest(fileName,idCarpeta) {
   try {
     const token = await getAccessToken();
     // Construye la URL con el nombre del archivo dinámico
-    const folderId = '1QI-6AWsi076azI_uLZwv6tUldNH_NOwH'; // ID de la carpeta
+    const folderId = idCarpeta; // ID de la carpeta
     const query = `'${folderId}' in parents and name='${encodeURIComponent(fileName)}' and (mimeType='image/jpeg' or mimeType='image/png' or mimeType='image/gif' or mimeType='application/pdf')`;
     const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,webContentLink)`;
 
@@ -38,11 +38,11 @@ async function makeApiRequest(fileName) {
     // Verifica si se obtuvo algún archivo
     if (response.data.files.length > 0) {
       const file = response.data.files[0];
-      if (file.mimeType === 'application/pdf') {
+      if (file) {
         const id = file.id;
         return 'https://drive.google.com/file/d/' + id + '/view'; // Devuelve el enlace para descargar el PDF
       } else {
-        return 'Error: El archivo encontrado no es un PDF.';
+        return 'Error: El archivo esta vacio o no existe';
       }
     } else {
       return 'Error: No se encontro el archivo ' + fileName;
