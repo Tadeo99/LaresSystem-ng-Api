@@ -244,7 +244,7 @@ exports.getObtenerProximaLetra = async (req, res) => {
 	   when trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))) between 0 and 999 then LPAD( trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))), 3 , '0') 
 	 Else '' end as numero_couta,
     pg.saldo,
-    pg.fecha_vcto,
+    TO_CHAR(pg.fecha_vcto, 'DD "de" FMMonth "de" YYYY') AS fecha_vcto,
     replace(pg.moneda_venta, 'PEN','SOLES') moneda
 FROM
     lares.pagos pg
@@ -324,7 +324,37 @@ and pg.numero_contrato IN
         );
         return res.status(500).json(errorResponse);
       }
-      const newUserResponse = ResponseVO.success(resultado.rows, null, null);
+      if (resultado.rows.length === 0) {
+        const newUserResponse = ResponseVO.success(resultado.rows, null, null);
+        res.set("Content-Type", "application/json; charset=utf-8");
+        return res.json(newUserResponse);
+      }
+      const traducirMes = (fecha) => {
+        const meses = {
+          January: "enero",
+          February: "febrero",
+          March: "marzo",
+          April: "abril",
+          May: "mayo",
+          June: "junio",
+          July: "julio",
+          August: "agosto",
+          September: "septiembre",
+          October: "octubre",
+          November: "noviembre",
+          December: "diciembre",
+        };
+        return fecha.replace(
+          /January|February|March|April|May|June|July|August|September|October|November|December/g,
+          (match) => meses[match]
+        );
+      };
+      // Modificar las fechas en el resultado
+      const rowsConFechasTraducidas = resultado.rows.map((row) => {
+        row.fecha_vcto = traducirMes(row.fecha_vcto);
+        return row;
+      });
+      const newUserResponse = ResponseVO.success(rowsConFechasTraducidas, null, null);
       res.set("Content-Type", "application/json; charset=utf-8");
       return res.json(newUserResponse);
     }
@@ -342,7 +372,7 @@ select distinct
 	   when trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))) between 0 and 999 then LPAD( trim(reverse(SPLIT_PART(reverse( pg.nombre), ' ', 1))), 3 , '0') 
 	 Else '' end as numero_couta,
     pg.monto_pagado,
-    pg.fecha_vcto,
+    TO_CHAR(pg.fecha_vcto, 'DD "de" FMMonth "de" YYYY') AS fecha_vcto,
     replace(pg.moneda_venta, 'PEN','SOLES') moneda
 FROM
     lares.pagos pg
@@ -421,7 +451,37 @@ and pg.numero_contrato IN
         );
         return res.status(500).json(errorResponse);
       }
-      const newUserResponse = ResponseVO.success(resultado.rows, null, null);
+      if (resultado.rows.length === 0) {
+        const newUserResponse = ResponseVO.success(resultado.rows, null, null);
+        res.set("Content-Type", "application/json; charset=utf-8");
+        return res.json(newUserResponse);
+      }
+      const traducirMes = (fecha) => {
+        const meses = {
+          January: "enero",
+          February: "febrero",
+          March: "marzo",
+          April: "abril",
+          May: "mayo",
+          June: "junio",
+          July: "julio",
+          August: "agosto",
+          September: "septiembre",
+          October: "octubre",
+          November: "noviembre",
+          December: "diciembre",
+        };
+        return fecha.replace(
+          /January|February|March|April|May|June|July|August|September|October|November|December/g,
+          (match) => meses[match]
+        );
+      };
+      // Modificar las fechas en el resultado
+      const rowsConFechasTraducidas = resultado.rows.map((row) => {
+        row.fecha_vcto = traducirMes(row.fecha_vcto);
+        return row;
+      });
+      const newUserResponse = ResponseVO.success(rowsConFechasTraducidas, null, null);
       res.set("Content-Type", "application/json; charset=utf-8");
       return res.json(newUserResponse);
     }
